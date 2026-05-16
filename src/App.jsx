@@ -58,9 +58,13 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const navigate = useNavigate();
 
+  /* =========================
+     FIXED PRODUCT FETCH
+  ========================= */
   useEffect(() => {
     setProductsLoading(true);
-    fetch('http://localhost:3001/products')
+
+    fetch("https://novera-home-1.onrender.com/products")
       .then((res) => res.json())
       .then((data) => {
         setProducts(Array.isArray(data) ? data : fallbackProducts);
@@ -99,39 +103,35 @@ export default function App() {
       navigate('/login');
       return false;
     }
-
     return true;
   }
 
   function showToast(message, type = 'info') {
     const id = `${Date.now()}-${Math.random()}`;
+    setToasts((current) => [...current, { id, message, type }]);
 
-    setToasts((currentToasts) => [...currentToasts, { id, message, type }]);
     setTimeout(() => {
-      setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== id));
+      setToasts((current) => current.filter((t) => t.id !== id));
     }, 3400);
   }
 
   function dismissToast(toastId) {
-    setToasts((currentToasts) => currentToasts.filter((toast) => toast.id !== toastId));
+    setToasts((current) => current.filter((t) => t.id !== toastId));
   }
 
   function toggleWishlist(product) {
-    if (!requireLogin()) {
-      return;
-    }
+    if (!requireLogin()) return;
 
     const productId = getProductId(product);
     const exists = wishlist.some((item) => getProductId(item) === productId);
 
-    setWishlist((currentWishlist) => {
-      const currentExists = currentWishlist.some((item) => getProductId(item) === productId);
-      const nextWishlist = currentExists
-        ? currentWishlist.filter((item) => getProductId(item) !== productId)
-        : [...currentWishlist, product];
+    setWishlist((current) => {
+      const updated = exists
+        ? current.filter((item) => getProductId(item) !== productId)
+        : [...current, product];
 
-      localStorage.setItem('wishlist', JSON.stringify(nextWishlist));
-      return nextWishlist;
+      localStorage.setItem('wishlist', JSON.stringify(updated));
+      return updated;
     });
 
     showToast(
@@ -141,53 +141,44 @@ export default function App() {
   }
 
   function addToCart(product, quantity = 1) {
-    if (!requireLogin()) {
-      return;
-    }
+    if (!requireLogin()) return;
 
     const quantityToAdd = Math.max(1, Number(quantity) || 1);
     const productId = getProductId(product);
-    const existingItem = cartItems.find((item) => getProductId(item) === productId);
 
-    setCartItems((currentItems) => {
-      const currentExistingItem = currentItems.find((item) => getProductId(item) === productId);
+    setCartItems((current) => {
+      const existing = current.find((item) => getProductId(item) === productId);
 
-      if (currentExistingItem) {
-        return currentItems.map((item) =>
-          getProductId(item) === productId ? { ...item, quantity: item.quantity + quantityToAdd } : item,
+      if (existing) {
+        return current.map((item) =>
+          getProductId(item) === productId
+            ? { ...item, quantity: item.quantity + quantityToAdd }
+            : item
         );
       }
 
-      return [...currentItems, { ...product, quantity: quantityToAdd }];
+      return [...current, { ...product, quantity: quantityToAdd }];
     });
 
-    showToast(
-      existingItem ? `${product.name} quantity updated in cart.` : `${product.name} added to cart.`,
-      'success',
-    );
+    showToast(`${product.name} added to cart.`, 'success');
   }
 
   function removeFromCart(productId) {
-    const removedItem = cartItems.find((item) => getProductId(item) === productId);
+    const removed = cartItems.find((item) => getProductId(item) === productId);
 
-    setCartItems((currentItems) => currentItems.filter((item) => getProductId(item) !== productId));
+    setCartItems((current) =>
+      current.filter((item) => getProductId(item) !== productId)
+    );
 
-    if (removedItem) {
-      showToast(`${removedItem.name} removed from cart.`, 'info');
+    if (removed) {
+      showToast(`${removed.name} removed from cart.`, 'info');
     }
   }
 
   async function handleCheckout(paymentMethod) {
-    if (!requireLogin()) {
-      return;
-    }
+    if (!requireLogin()) return;
 
     if (cartItems.length === 0) {
-      setCheckoutStatus({
-        loading: false,
-        message: 'Your cart is empty.',
-        type: 'error',
-      });
       showToast('Your cart is empty.', 'error');
       return;
     }
@@ -202,144 +193,110 @@ export default function App() {
         quantity: item.quantity,
       }));
 
-      const response = await fetch('http://localhost:3001/payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user._id || user.id,
-          products: paymentProducts,
-          totalAmount: cartTotal,
-          paymentMethod,
-        }),
-      });
+      /* =========================
+         FIXED BACKEND URL
+      ========================= */
+      const response = await fetch(
+        "https://novera-home-1.onrender.com/payment",
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: user._id || user.id,
+            products: paymentProducts,
+            totalAmount: cartTotal,
+            paymentMethod,
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (!data.success) {
-        setCheckoutStatus({
-          loading: false,
-          message: data.message || 'Payment failed. Please try again.',
-          type: 'error',
-        });
-        showToast(data.message || 'Payment failed. Please try again.', 'error');
+        showToast(data.message || 'Payment failed.', 'error');
+        setCheckoutStatus({ loading: false, message: data.message, type: 'error' });
         return;
       }
 
       setCartItems([]);
       setLastOrder(data.order);
       localStorage.setItem('lastOrder', JSON.stringify(data.order));
-      setCheckoutStatus({
-        loading: false,
-        message: 'Payment successful. Your order has been placed.',
-        type: 'success',
-      });
-      showToast('Payment successful. Your order has been placed.', 'success');
+
+      showToast('Payment successful. Order placed.', 'success');
       navigate('/order-success');
+
     } catch {
+      showToast('Payment service unavailable.', 'error');
       setCheckoutStatus({
         loading: false,
-        message: 'Payment service is temporarily unavailable. Please try again.',
+        message: 'Payment service unavailable.',
         type: 'error',
       });
-      showToast('Payment service is temporarily unavailable. Please try again.', 'error');
     }
   }
 
   return (
     <div className="app-shell">
-      <Navbar cartCount={cartCount} user={user} onLogout={handleLogout} />
+      <Navbar cartCount={cartItems.length} user={user} onLogout={handleLogout} />
+
       <Routes>
-        <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage onLogin={handleLogin} />} />
-        <Route path="/signup" element={user ? <Navigate to="/" replace /> : <SignupPage onNotify={showToast} />} />
-        <Route
-          path="/"
-          element={
-            <HomePage
-              products={products}
-              productsLoading={productsLoading}
-              productsError={productsError}
-              wishlist={wishlist}
-              onAddToCart={addToCart}
-              onToggleWishlist={toggleWishlist}
-            />
-          }
-        />
-        <Route
-          path="/explore"
-          element={
-            <ExplorePage
-              products={products}
-              productsLoading={productsLoading}
-              wishlist={wishlist}
-              onAddToCart={addToCart}
-              onToggleWishlist={toggleWishlist}
-            />
-          }
-        />
-        <Route
-          path="/category/:categorySlug"
-          element={
-            <CategoryPage
-              products={products}
-              productsLoading={productsLoading}
-              wishlist={wishlist}
-              onAddToCart={addToCart}
-              onToggleWishlist={toggleWishlist}
-            />
-          }
-        />
-        <Route
-          path="/product/:productId"
-          element={
-            <ProductDetailsPage
-              products={products}
-              wishlist={wishlist}
-              onAddToCart={addToCart}
-              onToggleWishlist={toggleWishlist}
-            />
-          }
-        />
-        <Route
-          path="/cart"
-          element={
-            <CartPage
-              cartItems={cartItems}
-              cartTotal={cartTotal}
-              onRemoveFromCart={removeFromCart}
-              onCheckout={handleCheckout}
-              checkoutStatus={checkoutStatus}
-            />
-          }
-        />
-        <Route
-          path="/order-success"
-          element={
-            <ProtectedRoute user={user}>
-              <OrderSuccessPage order={lastOrder} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/wishlist"
-          element={
-            <WishlistPage
-              wishlist={wishlist}
-              onAddToCart={addToCart}
-              onToggleWishlist={toggleWishlist}
-            />
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute user={user}>
-              <ProfilePage user={user} wishlist={wishlist} products={products} onLogout={handleLogout} />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage onLogin={handleLogin} />} />
+        <Route path="/signup" element={user ? <Navigate to="/" /> : <SignupPage onNotify={showToast} />} />
+
+        <Route path="/" element={
+          <HomePage
+            products={products}
+            productsLoading={productsLoading}
+            productsError={productsError}
+            wishlist={wishlist}
+            onAddToCart={addToCart}
+            onToggleWishlist={toggleWishlist}
+          />
+        } />
+
+        <Route path="/explore" element={
+          <ExplorePage
+            products={products}
+            productsLoading={productsLoading}
+            wishlist={wishlist}
+            onAddToCart={addToCart}
+            onToggleWishlist={toggleWishlist}
+          />
+        } />
+
+        <Route path="/cart" element={
+          <CartPage
+            cartItems={cartItems}
+            cartTotal={cartTotal}
+            onRemoveFromCart={removeFromCart}
+            onCheckout={handleCheckout}
+            checkoutStatus={checkoutStatus}
+          />
+        } />
+
+        <Route path="/wishlist" element={
+          <WishlistPage
+            wishlist={wishlist}
+            onAddToCart={addToCart}
+            onToggleWishlist={toggleWishlist}
+          />
+        } />
+
+        <Route path="/order-success" element={
+          <ProtectedRoute user={user}>
+            <OrderSuccessPage order={lastOrder} />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/profile" element={
+          <ProtectedRoute user={user}>
+            <ProfilePage user={user} wishlist={wishlist} products={products} onLogout={handleLogout} />
+          </ProtectedRoute>
+        } />
       </Routes>
+
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <Footer user={user} />
     </div>

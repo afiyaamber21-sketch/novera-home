@@ -28,7 +28,7 @@ export default function ProductDetailsPage({ products, wishlist = [], onAddToCar
     setErrorMessage('');
     setQuantity(1);
 
-    fetch('http://localhost:3001/products')
+     fetch('https://novera-home-1.onrender.com/products')
       .then((response) => response.json())
       .then((data) => {
         if (ignoreResult) {

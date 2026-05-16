@@ -22,14 +22,18 @@ export default function LoginPage({ onLogin }) {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:3001/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
+      const response = await fetch(
+        'https://novera-home-1.onrender.com/login',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
+        }
+      );
+
       const data = await response.json();
 
       if (!response.ok || !data.success || !data.user) {
@@ -51,6 +55,7 @@ export default function LoginPage({ onLogin }) {
       <section className="auth-panel">
         <p className="eyebrow">Welcome back</p>
         <h1>Login</h1>
+
         <form className="auth-form" onSubmit={handleSubmit}>
           <label>
             Email
@@ -63,6 +68,7 @@ export default function LoginPage({ onLogin }) {
               required
             />
           </label>
+
           <label>
             Password
             <input
@@ -74,12 +80,15 @@ export default function LoginPage({ onLogin }) {
               required
             />
           </label>
+
           {error && <p className="form-message error">{error}</p>}
+
           <button className="primary-button" type="submit" disabled={isSubmitting}>
             <LogIn size={18} />
             {isSubmitting ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
         <p className="auth-switch">
           New to Novera Home? <Link to="/signup">Create an account</Link>
         </p>

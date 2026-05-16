@@ -70,7 +70,7 @@ export default function ProfilePage({ user, wishlist, products = [], onLogout })
         setOrdersLoading(true);
         setOrdersError('');
 
-        const response = await fetch(`http://localhost:3001/orders/${userId}`);
+        const response = await fetch(`https://novera-home-1.onrender.com/orders/${userId}`);
         const data = await response.json();
 
         setOrders(Array.isArray(data) ? data : []);
