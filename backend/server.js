@@ -12,7 +12,7 @@ app.use(express.json());
 ========================= */
 
 mongoose
-  .connect("mongodb://127.0.0.1:27017/novera-home")
+  .connect("mongodb+srv://afiya:12345@cluster0.qwzuv5t.mongodb.net/?appName=Cluster0")
   .then(() => {
     console.log("MongoDB Connected");
   })
